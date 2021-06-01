@@ -21,6 +21,8 @@ import {
 import MoreVertIcon from "@material-ui/icons/MoreVert";
 import classNames from "classnames";
 import orders from "../../services/orders";
+import DeleteModal from "./DeleteModal";
+import channels from "../../services/channels";
 
 const useStyles = makeStyles((theme) => ({
     root: {
@@ -105,6 +107,7 @@ function Dialog(props) {
     const [modalState, setModalState] = useState(false);
     const [file, setFileName] = useState(null);
     const [orderId, setOrderId] = useState(null);
+    const [deleteModal, setDeleteModal] = useState(false);
 
     const {user, userData, openSnackbar} = props;
     const history = useHistory();
@@ -177,7 +180,7 @@ function Dialog(props) {
     };
 
     const handleActionReject = () => {
-
+        showDeleteModal();
     };
 
     const getSubheaderTitle = () => {
@@ -219,13 +222,18 @@ function Dialog(props) {
         }
 
         if (actionStatus === "completed")
-            return;
+            return "Сделка закрыта";
 
         return
     }
 
     const sendMsg = (e) => {
         e.preventDefault();
+        if (actionStatus === "completed"){
+            openSnackbar("Сделка уже закрыта!");
+            return;
+        }
+
         if (userNewMsg && params.id) {
             if (userData) {
                 const displayName = userData.fullName;
@@ -287,8 +295,36 @@ function Dialog(props) {
         }
     };
 
+    const removeChannel = () => {
+        if (!(params && params.id))
+            return;
+
+        channels
+            .removeChannel(params.id)
+            .then((value) => {
+                history.goBack();
+            })
+            .catch((reason) => {
+                const code = reason.code;
+                const message = reason.message;
+
+                switch (code) {
+                    default:
+                        openSnackbar(message);
+                        return;
+                }
+            })
+            .finally(() => {
+
+            });
+    };
+
     const openModal = () => {
         setModalState(!modalState);
+    };
+
+    const showDeleteModal = () => {
+        setDeleteModal(!deleteModal);
     };
 
     const handleFileUpload = (e) => {
@@ -379,21 +415,33 @@ function Dialog(props) {
                         </Typography>
                     </Grid>
 
-                    <Grid item>
-                        <Button color="primary" variant="contained" className={classNames(classes.btn)}
-                                onClick={handleActionAccept}>
-                            Принять
-                        </Button>
-                    </Grid>
+                    {(actionStatus !== "completed") && (
+                        <Grid item>
+                            <Button color="primary" variant="contained" className={classNames(classes.btn)}
+                                    onClick={handleActionAccept}>
+                                Принять
+                            </Button>
+                        </Grid>
+                    )}
 
-                    <Grid item>
-                        <Button color="secondary" variant="contained" className={classNames(classes.btn)}
-                                onClick={handleActionReject}>
-                            Отклонить
-                        </Button>
-                    </Grid>
+                    {(actionStatus !== "completed") && (
+                        <Grid item>
+                            <Button color="secondary" variant="contained" className={classNames(classes.btn)}
+                                    onClick={handleActionReject}>
+                                Отклонить
+                            </Button>
+                        </Grid>
+                    )}
                 </Grid>
             )}
+
+            {deleteModal ? (
+                <DeleteModal
+                    title="Вы уверены, что хотите отклонить заказ?"
+                    deleteMsg={removeChannel}
+                    handleModal={showDeleteModal}
+                />
+            ) : null}
 
             <Divider light/>
             <Box className={classes.body}>
